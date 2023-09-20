@@ -2,8 +2,9 @@ package main
 
 import (
 	"fmt"
-	"log"
+	"net/url"
 
+	"golang.org/x/oauth2"
 	"google.golang.org/api/drive/v3"
 )
 
@@ -28,7 +29,15 @@ func (s *DriveService) Folders(parent string) (list []*drive.File) {
 			PageSize(100).
 			Fields("nextPageToken, files(id, name)").Do()
 		if err != nil {
-			log.Fatalf("Unable to retrieve files: %v", err)
+			if uerr, ok := err.(*url.Error); ok {
+				if oerr, ok := uerr.Err.(*oauth2.RetrieveError); ok {
+					if oerr.ErrorCode == "invalid_grant" {
+						fmt.Println("Your saved access token (token.json) is no longer valid ; retry after deleting it")
+						return list
+					}
+				}
+			}
+			fmt.Println("Unable to retrieve files: %v (%T)", err, err)
 		}
 		list = append(list, r.Files...)
 		pageToken = r.NextPageToken
@@ -46,7 +55,7 @@ func (s *DriveService) Photos(parent string) (list []*drive.File) {
 		r, err := s.service.Files.List().
 			Q(fmt.Sprintf(`
 		'%s' in parents and
-		mimeType = 'image/png' and 
+		(mimeType = 'image/png' or mimeType = 'image/jpeg') and 
 		trashed=false and 
 		'%s' in owners
 		`, parent, s.owner)).
@@ -54,7 +63,15 @@ func (s *DriveService) Photos(parent string) (list []*drive.File) {
 			PageToken(pageToken).
 			Fields("nextPageToken, files(id, name,createdTime)").Do()
 		if err != nil {
-			log.Fatalf("Unable to retrieve files: %v", err)
+			if uerr, ok := err.(*url.Error); ok {
+				if oerr, ok := uerr.Err.(*oauth2.RetrieveError); ok {
+					if oerr.ErrorCode == "invalid_grant" {
+						fmt.Println("Your saved access token (token.json) is no longer valid ; retry after deleting it")
+						return list
+					}
+				}
+			}
+			fmt.Println("Unable to retrieve files: %v", err)
 		}
 		list = append(list, r.Files...)
 		pageToken = r.NextPageToken
