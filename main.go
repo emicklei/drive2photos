@@ -14,6 +14,7 @@ import (
 )
 
 func main() {
+	fmt.Println("drive2photos --- [:q :p :f cd ls]")
 	ctx := context.Background()
 	b, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -91,17 +92,7 @@ func (f *Finder) repl() {
 			continue
 		}
 		if entry == "ls" {
-			if f.driveFilesKind == "folders" {
-				f.lastDriveFolders = f.drive.Folders(f.driveStack.Top().Id)
-				for _, each := range f.lastDriveFolders {
-					fmt.Println(each.Name)
-				}
-			}
-			if f.driveFilesKind == "photos" {
-				for _, each := range f.drive.Photos(f.driveStack.Top().Id) {
-					fmt.Println(each.Name)
-				}
-			}
+			f.ls()
 			continue
 		}
 		if strings.HasPrefix(entry, "cd") {
@@ -123,7 +114,7 @@ func (f *Finder) repl() {
 					}
 				}
 				if found == nil {
-					fmt.Println(dir, " no such folder")
+					fmt.Println(dir, " no such folder (did you run ls?)")
 				} else {
 					f.driveStack.Push(found)
 				}
@@ -131,6 +122,20 @@ func (f *Finder) repl() {
 			continue
 		}
 		line.AppendHistory(entry)
+	}
+}
+
+func (f *Finder) ls() {
+	if f.driveFilesKind == "folders" {
+		f.lastDriveFolders = f.drive.Folders(f.driveStack.Top().Id)
+		for _, each := range f.lastDriveFolders {
+			fmt.Println(each.Name)
+		}
+	}
+	if f.driveFilesKind == "photos" {
+		for _, each := range f.drive.Photos(f.driveStack.Top().Id) {
+			fmt.Println(each.Name)
+		}
 	}
 }
 
