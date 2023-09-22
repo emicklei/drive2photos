@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
+	"net/http"
 	"os"
 	"strings"
+	"time"
 
 	"github.com/peterh/liner"
 	"golang.org/x/oauth2/google"
@@ -13,8 +16,17 @@ import (
 	"google.golang.org/api/option"
 )
 
+var owner = flag.String("email", "", "Google email address")
+
 func main() {
-	fmt.Println("drive2photos --- [:q :p :f cd ls]")
+	flag.Parse()
+	fmt.Println("drive2photos --- [:q :p :f cd ls cp rm mv]")
+
+	if *owner == "" {
+		fmt.Println("email flag is required")
+		return
+	}
+
 	ctx := context.Background()
 	b, err := os.ReadFile("credentials.json")
 	if err != nil {
@@ -38,37 +50,20 @@ func main() {
 	if err != nil {
 		log.Fatalf("Unable to retrieve Drive client: %v", err)
 	}
-	d := DriveService{service: srv, owner: "ernest.micklei@gmail.com"}
+	d := DriveService{service: srv, owner: *owner, client: new(http.Client)}
 	s := PhotosService{client: client}
-	/**
-		for _, each := range d.Folders("root") {
-			log.Println(each.Name)
-		}
-		for _, each := range d.Photos("root") {
-			when, err := time.Parse(time.RFC3339, each.CreatedTime)
-			if err != nil {
-				log.Println("cannot parse", each.CreatedTime)
-			}
-			log.Println(each.Name, when)
-		}
-		c, _ := time.Parse("2006-01-02", "2018-09-07")
-
-		m, ok := s.Search("IMG_1483203832100.JPG", MediaType_Photo, c)
-		if ok {
-			log.Println(m)
-		}
-	**/
 	f := Finder{drive: d, photos: s, driveStack: new(Stack[*drive.File]), driveFilesKind: "folders"}
 	f.driveStack.Push(&drive.File{Id: "root", Name: "/"})
+	f.ls()
 	f.repl()
 }
 
 type Finder struct {
-	drive            DriveService
-	driveStack       *Stack[*drive.File]
-	lastDriveFolders []*drive.File
-	photos           PhotosService
-	driveFilesKind   string
+	drive          DriveService
+	driveStack     *Stack[*drive.File]
+	lastListing    []*drive.File
+	photos         PhotosService
+	driveFilesKind string
 }
 
 func (f *Finder) repl() {
@@ -85,14 +80,24 @@ func (f *Finder) repl() {
 		}
 		if entry == ":f" {
 			f.driveFilesKind = "folders"
+			f.ls()
 			continue
 		}
 		if entry == ":p" {
 			f.driveFilesKind = "photos"
+			f.ls()
 			continue
 		}
 		if entry == "ls" {
 			f.ls()
+			continue
+		}
+		if strings.HasPrefix(entry, "cp") {
+			parts := strings.Split(entry, " ")
+			if len(parts) > 1 {
+				obj := parts[1]
+				f.cp(obj)
+			}
 			continue
 		}
 		if strings.HasPrefix(entry, "cd") {
@@ -107,7 +112,7 @@ func (f *Finder) repl() {
 					continue
 				}
 				var found *drive.File
-				for _, each := range f.lastDriveFolders {
+				for _, each := range f.lastListing {
 					if each.Name == dir {
 						found = each
 						break
@@ -119,6 +124,7 @@ func (f *Finder) repl() {
 					f.driveStack.Push(found)
 				}
 			}
+			f.ls()
 			continue
 		}
 		line.AppendHistory(entry)
@@ -126,17 +132,64 @@ func (f *Finder) repl() {
 }
 
 func (f *Finder) ls() {
+	found := false
 	if f.driveFilesKind == "folders" {
-		f.lastDriveFolders = f.drive.Folders(f.driveStack.Top().Id)
-		for _, each := range f.lastDriveFolders {
+		f.lastListing = f.drive.Folders(f.driveStack.Top().Id)
+		for _, each := range f.lastListing {
+			found = true
 			fmt.Println(each.Name)
 		}
+		if !found {
+			fmt.Println("no folders found")
+		}
+		return
 	}
 	if f.driveFilesKind == "photos" {
-		for _, each := range f.drive.Photos(f.driveStack.Top().Id) {
+		f.lastListing = f.drive.Photos(f.driveStack.Top().Id)
+		for _, each := range f.lastListing {
+			found = true
 			fmt.Println(each.Name)
 		}
+		if !found {
+			fmt.Println("no photos found")
+		}
+		return
 	}
+}
+
+func (f *Finder) cp(fileName string) {
+	if f.driveFilesKind == "folders" {
+		fmt.Println("cannot copy folders")
+		return
+	}
+	var found *drive.File
+	for _, each := range f.lastListing {
+		if each.OriginalFilename == fileName || each.Name == fileName {
+			found = each
+			break
+		}
+	}
+	if found == nil {
+		fmt.Println(fileName, " no such file (did you run ls?)")
+		return
+	}
+	createdTime, err := time.Parse(time.RFC3339, found.CreatedTime)
+	if err != nil {
+		fmt.Println("cannot parse created time", found.CreatedTime)
+		return
+	}
+	mediaItem, ok := f.photos.Search(fileName, MediaType_Photo, createdTime)
+	if ok {
+		fmt.Println("found copy on Google Photos, no copy needed: ", mediaItem.ProductURL)
+		return
+	}
+	fmt.Println("downloading", fileName)
+	data, ok := f.drive.Download(found)
+	if !ok {
+		return
+	}
+	fmt.Println("uploading", len(data), " bytes")
+	// f.photos.Upload(fileName, data)
 }
 
 func Path(s *Stack[*drive.File]) string {

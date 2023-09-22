@@ -3,6 +3,7 @@ package main
 import (
 	"encoding/json"
 	"fmt"
+	"io"
 	"log"
 	"net/http"
 	"strings"
@@ -16,6 +17,21 @@ const (
 
 type PhotosService struct {
 	client *http.Client
+}
+
+func (s *PhotosService) Upload(payloadReader io.Reader, mimeType string) bool {
+	resp, err := s.client.Post("https://photoslibrary.googleapis.com/v1/uploads",
+		mimeType,
+		payloadReader)
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("error:", resp.Status)
+		return false
+	}
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	return true
 }
 
 func (s *PhotosService) Search(fileName, mediaType string, created time.Time) (MediaItem, bool) {
