@@ -18,8 +18,9 @@ type DriveService struct {
 }
 
 func (s *DriveService) Download(f *drive.File) ([]byte, bool) {
-	fmt.Println("downloading", f.WebContentLink)
-	resp, err := s.client.Get(f.WebContentLink)
+	fmt.Println("downloading", f.Name)
+
+	resp, err := s.service.Files.Get(f.Id).Download()
 	if err != nil {
 		fmt.Printf("unable to download file: %v/n", err)
 		return nil, false
@@ -84,7 +85,7 @@ func (s *DriveService) Photos(parent string) (list []*drive.File) {
 		`, parent, s.owner)).
 			PageSize(100).
 			PageToken(pageToken).
-			Fields("nextPageToken, files(id, name,createdTime,webContentLink)").Do()
+			Fields("nextPageToken, files(id, name,createdTime)").Do()
 		if err != nil {
 			if uerr, ok := err.(*url.Error); ok {
 				if oerr, ok := uerr.Err.(*oauth2.RetrieveError); ok {

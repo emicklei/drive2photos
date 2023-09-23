@@ -6,7 +6,9 @@ import (
 	"fmt"
 	"io"
 	"log"
+	"mime"
 	"net/http"
+	"path/filepath"
 	"strings"
 	"time"
 
@@ -22,8 +24,13 @@ type PhotosService struct {
 	client *http.Client
 }
 
+// https://developers.google.com/photos/library/guides/upload-media#creating-media-bp
 func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
-	fmt.Println("uploading", file.Name, "with", len(content), "bytes created on", file.CreatedTime, "mime", file.MimeType)
+	mimeType := file.MimeType
+	if mimeType == "" {
+		mimeType = mime.TypeByExtension(filepath.Ext(file.Name))
+	}
+	fmt.Println("uploading", file.Name, "with", len(content), "bytes created on", file.CreatedTime, "mime", mimeType)
 
 	// first upload bytes
 	payloadReader := bytes.NewReader(content)
@@ -35,7 +42,7 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 	req.Header.Set("Content-Type", "application/octet-stream")
 	req.Header.Set("X-Goog-Upload-File-Name", file.Name)
 	req.Header.Set("X-Goog-Upload-Protocol", "raw")
-	req.Header.Set("X-Goog-Upload-Content-Type", file.MimeType)
+	req.Header.Set("X-Goog-Upload-Content-Type", mimeType)
 
 	resp, err := s.client.Do(req)
 	if err != nil {
@@ -63,13 +70,6 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 	}
 
 	// now create media item
-	req, err = http.NewRequest("POST", "https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate", nil)
-	if err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-	req.Header.Set("Content-Type", "application/json")
-
 	// payload
 	doc := map[string][]NewMediaItem{}
 	doc["newMediaItems"] = []NewMediaItem{
@@ -86,7 +86,14 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		fmt.Println("error:", err)
 		return false
 	}
-	req.Body = io.NopCloser(bytes.NewReader(body))
+	fmt.Println(string(body))
+	req, err = http.NewRequest("POST", "https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate", bytes.NewReader(body))
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	req.Header.Set("Content-Type", "application/json")
+
 	resp, err = s.client.Do(req)
 	if err != nil {
 		fmt.Println("error:", err)
@@ -97,10 +104,87 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		fmt.Println("error:", resp.Status)
 		return false
 	}
-	content, _ = io.ReadAll(resp.Body)
-	fmt.Println("response:", string(content))
+	content, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	resultDoc := NewMediaItemResultsDoc{}
+	err = json.Unmarshal(content, &resultDoc)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
 
+	fmt.Println(string(content))
+
+	createdTime, err := time.Parse(time.RFC3339, file.CreatedTime)
+	if err != nil {
+		fmt.Println("cannot parse created time", file.CreatedTime)
+		return false
+	}
+
+	// Now patch the creationDate of the mediaItem
+	itemToUpdate := MediaItemPatch{
+		ID: resultDoc.NewMediaItemResults[0].MediaItem.ID,
+		MediaMetadata: MediaMetadataPatch{
+			CreationTime: createdTime,
+		},
+	}
+	body, err = json.Marshal(itemToUpdate)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	fmt.Println(string(body))
+
+	req, err = http.NewRequest("PATCH",
+		"https://photoslibrary.googleapis.com/v1/mediaItems/"+resultDoc.NewMediaItemResults[0].MediaItem.ID+"?updateMask=mediaMetadata.creationTime",
+		bytes.NewReader(body))
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	resp, err = s.client.Do(req)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	defer resp.Body.Close()
+
+	content, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+
+	fmt.Println(string(content))
+
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("error:", resp.Status)
+		return false
+	}
 	return true
+}
+
+type NewMediaItemResultsDoc struct {
+	NewMediaItemResults []struct {
+		UploadToken string `json:"uploadToken"`
+		Status      struct {
+			Message string `json:"message"`
+		} `json:"status"`
+		MediaItem struct {
+			ID            string `json:"id"`
+			ProductURL    string `json:"productUrl"`
+			MimeType      string `json:"mimeType"`
+			MediaMetadata struct {
+				CreationTime time.Time `json:"creationTime"`
+				Width        string    `json:"width"`
+				Height       string    `json:"height"`
+			} `json:"mediaMetadata"`
+			Filename string `json:"filename"`
+		} `json:"mediaItem"`
+	} `json:"newMediaItemResults"`
 }
 
 type NewMediaItem struct {

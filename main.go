@@ -37,10 +37,11 @@ func main() {
 	// https://developers.google.com/photos/library/guides/authorization
 	config, err := google.ConfigFromJSON(b,
 		drive.DrivePhotosReadonlyScope,
-		drive.DriveFileScope,
+		drive.DriveScope,
 		"https://www.googleapis.com/auth/drive.readonly.metadata",
 		"https://www.googleapis.com/auth/photoslibrary.readonly",
-		"https://www.googleapis.com/auth/photoslibrary.appendonly")
+		"https://www.googleapis.com/auth/photoslibrary.appendonly",
+		"https://www.googleapis.com/auth/photoslibrary.edit.appcreateddata")
 	if err != nil {
 		log.Fatalf("Unable to parse client secret file to config: %v", err)
 	}
