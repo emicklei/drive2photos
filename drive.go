@@ -18,6 +18,7 @@ type DriveService struct {
 }
 
 func (s *DriveService) Download(f *drive.File) ([]byte, bool) {
+	fmt.Println("downloading", f.WebContentLink)
 	resp, err := s.client.Get(f.WebContentLink)
 	if err != nil {
 		fmt.Printf("unable to download file: %v/n", err)

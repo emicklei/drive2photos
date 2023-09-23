@@ -109,6 +109,7 @@ func (f *Finder) repl() {
 					if f.driveStack.Size() > 1 {
 						f.driveStack.Pop()
 					}
+					f.ls()
 					continue
 				}
 				var found *drive.File
@@ -126,6 +127,9 @@ func (f *Finder) repl() {
 			}
 			f.ls()
 			continue
+		} else {
+			// fallback
+			fmt.Println("unknown command, try :q :p :f cd ls cp rm mv")
 		}
 		line.AppendHistory(entry)
 	}
@@ -183,13 +187,15 @@ func (f *Finder) cp(fileName string) {
 		fmt.Println("found copy on Google Photos, no copy needed: ", mediaItem.ProductURL)
 		return
 	}
-	fmt.Println("downloading", fileName)
 	data, ok := f.drive.Download(found)
 	if !ok {
 		return
 	}
-	fmt.Println("uploading", len(data), " bytes")
-	// f.photos.Upload(fileName, data)
+	fmt.Println("... done")
+	if !f.photos.Upload(found, data) {
+		return
+	}
+	fmt.Println("... done")
 }
 
 func Path(s *Stack[*drive.File]) string {
