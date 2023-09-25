@@ -21,3 +21,4 @@ See https://developers.google.com/drive/api/quickstart/go.
 |cp [name] | copy the photo to Google Photos (unless exists)
 |rm [name] | remove the photo to Google Drive
 |mv [name] | move the photo from Google Drive to Google Photos
+|ff [name] | find file on Google Photos

@@ -86,7 +86,7 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		fmt.Println("error:", err)
 		return false
 	}
-	fmt.Println(string(body))
+	// fmt.Println(string(body))
 	req, err = http.NewRequest("POST", "https://photoslibrary.googleapis.com/v1/mediaItems:batchCreate", bytes.NewReader(body))
 	if err != nil {
 		fmt.Println("error:", err)
@@ -116,54 +116,15 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		return false
 	}
 
-	fmt.Println(string(content))
+	// fmt.Println(string(content))
 
 	createdTime, err := time.Parse(time.RFC3339, file.CreatedTime)
 	if err != nil {
 		fmt.Println("cannot parse created time", file.CreatedTime)
 		return false
 	}
+	fmt.Println("photo stored on timeline at", createdTime)
 
-	// Now patch the creationDate of the mediaItem
-	itemToUpdate := MediaItemPatch{
-		ID: resultDoc.NewMediaItemResults[0].MediaItem.ID,
-		MediaMetadata: MediaMetadataPatch{
-			CreationTime: createdTime,
-		},
-	}
-	body, err = json.Marshal(itemToUpdate)
-	if err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-	fmt.Println(string(body))
-
-	req, err = http.NewRequest("PATCH",
-		"https://photoslibrary.googleapis.com/v1/mediaItems/"+resultDoc.NewMediaItemResults[0].MediaItem.ID+"?updateMask=mediaMetadata.creationTime",
-		bytes.NewReader(body))
-	if err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-	resp, err = s.client.Do(req)
-	if err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-	defer resp.Body.Close()
-
-	content, err = io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("error:", err)
-		return false
-	}
-
-	fmt.Println(string(content))
-
-	if resp.StatusCode != http.StatusOK {
-		fmt.Println("error:", resp.Status)
-		return false
-	}
 	return true
 }
 

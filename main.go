@@ -18,9 +18,11 @@ import (
 
 var owner = flag.String("email", "", "Google email address")
 
+var cmds = ":q :p :f cd ls cp rm mv ff"
+
 func main() {
 	flag.Parse()
-	fmt.Println("drive2photos --- [:q :p :f cd ls cp rm mv]")
+	fmt.Println("drive2photos --- [" + cmds + "]")
 
 	if *owner == "" {
 		fmt.Println("email flag is required")
@@ -93,18 +95,31 @@ func (f *Finder) repl() {
 			f.ls()
 			continue
 		}
+		if strings.HasPrefix(entry, "ff") {
+			obj := parameterFromEntry(entry)
+			if obj != "" {
+				f.search(obj)
+			}
+			continue
+		}
 		if strings.HasPrefix(entry, "cp") {
-			parts := strings.Split(entry, " ")
-			if len(parts) > 1 {
-				obj := parts[1]
+			obj := parameterFromEntry(entry)
+			if obj != "" {
 				f.cp(obj)
 			}
 			continue
 		}
+		if strings.HasPrefix(entry, "rm") {
+			obj := parameterFromEntry(entry)
+			if obj != "" {
+				f.rm(obj)
+			}
+			f.ls()
+			continue
+		}
 		if strings.HasPrefix(entry, "cd") {
-			parts := strings.Split(entry, " ")
-			if len(parts) > 1 {
-				dir := parts[1]
+			dir := parameterFromEntry(entry)
+			if dir != "" {
 				if dir == ".." {
 					// keep root
 					if f.driveStack.Size() > 1 {
@@ -130,10 +145,18 @@ func (f *Finder) repl() {
 			continue
 		} else {
 			// fallback
-			fmt.Println("unknown command, try :q :p :f cd ls cp rm mv")
+			fmt.Println("unknown command, try " + cmds)
 		}
 		line.AppendHistory(entry)
 	}
+}
+
+func parameterFromEntry(entry string) string {
+	space := strings.Index(entry, " ")
+	if space == -1 {
+		return entry
+	}
+	return strings.TrimSpace(entry[space+1:])
 }
 
 func (f *Finder) ls() {
@@ -159,6 +182,56 @@ func (f *Finder) ls() {
 			fmt.Println("no photos found")
 		}
 		return
+	}
+}
+
+func (f *Finder) search(fileName string) {
+	if f.driveFilesKind == "folders" {
+		fmt.Println("cannot copy folders")
+		return
+	}
+	var found *drive.File
+	for _, each := range f.lastListing {
+		if each.OriginalFilename == fileName || each.Name == fileName {
+			found = each
+			break
+		}
+	}
+	if found == nil {
+		fmt.Println(fileName, " no such file (did you run ls?)")
+		return
+	}
+	createdTime, err := time.Parse(time.RFC3339, found.CreatedTime)
+	if err != nil {
+		fmt.Println("cannot parse created time", found.CreatedTime)
+		return
+	}
+	mediaItem, ok := f.photos.Search(fileName, MediaType_Photo, createdTime)
+	if ok {
+		fmt.Println("found copy on Google Photos: ", mediaItem.ProductURL)
+	} else {
+		fmt.Println("not found on Google Photos")
+	}
+}
+
+func (f *Finder) rm(fileName string) {
+	if f.driveFilesKind == "folders" {
+		fmt.Println("cannot copy folders")
+		return
+	}
+	var found *drive.File
+	for _, each := range f.lastListing {
+		if each.OriginalFilename == fileName || each.Name == fileName {
+			found = each
+			break
+		}
+	}
+	if found == nil {
+		fmt.Println(fileName, " no such file (did you run ls?)")
+		return
+	}
+	if f.drive.Delete(found) {
+		fmt.Println("... done")
 	}
 }
 

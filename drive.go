@@ -17,6 +17,17 @@ type DriveService struct {
 	client  *http.Client
 }
 
+func (s *DriveService) Delete(f *drive.File) bool {
+	fmt.Println("deleting", f.Name)
+
+	err := s.service.Files.Delete(f.Id).Do()
+	if err != nil {
+		fmt.Printf("unable to delete file: %v/n", err)
+		return false
+	}
+	return true
+}
+
 func (s *DriveService) Download(f *drive.File) ([]byte, bool) {
 	fmt.Println("downloading", f.Name)
 
