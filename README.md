@@ -8,6 +8,15 @@ A tool to transfer missing media (photo,video) from Google Drive to Google Photo
 A `credentials.json` file which is the exported OAuth2 API Key from a Google Cloud project.
 See https://developers.google.com/drive/api/quickstart/go.
 
+
+### install
+
+    go install github.com/emicklei/drive2photos@latest
+
+### commands
+
+|command|description|-gen@latest
+
 ### commands
 
 |command|description|
@@ -18,7 +27,9 @@ See https://developers.google.com/drive/api/quickstart/go.
 |ls  |list the contents of the current folder|
 |cd [name] | change to the subfolder |
 |cd .. | change to the parent folder |
-|cp [name] | copy the photo to Google Photos (unless exists)
-|rm [name] | remove the photo to Google Drive
-|mv [name] | move the photo from Google Drive to Google Photos
-|ff [name] | find file on Google Photos
+|cp [name] | copy the media to Google Photos (unless exists)
+|rm [name] | remove the media from Google Drive
+|mv [name] | move the media from Google Drive to Google Photos
+|ff [name] | find the media file on Google Photos
+
+(c) 2023, https://ernestmicklei.com. MIT License.
