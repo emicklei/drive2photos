@@ -8,7 +8,6 @@ import (
 	"net/http"
 	"os"
 	"strings"
-	"time"
 
 	"github.com/peterh/liner"
 	"golang.org/x/oauth2/google"
@@ -117,6 +116,16 @@ func (f *Finder) repl() {
 			f.ls()
 			continue
 		}
+		if strings.HasPrefix(entry, "mv") {
+			obj := parameterFromEntry(entry)
+			if obj != "" {
+				if f.cp(obj) {
+					f.rm(obj)
+				}
+			}
+			f.ls()
+			continue
+		}
 		if strings.HasPrefix(entry, "cd") {
 			dir := parameterFromEntry(entry)
 			if dir != "" {
@@ -157,119 +166,6 @@ func parameterFromEntry(entry string) string {
 		return entry
 	}
 	return strings.TrimSpace(entry[space+1:])
-}
-
-func (f *Finder) ls() {
-	found := false
-	if f.driveFilesKind == "folders" {
-		f.lastListing = f.drive.Folders(f.driveStack.Top().Id)
-		for _, each := range f.lastListing {
-			found = true
-			fmt.Println(each.Name)
-		}
-		if !found {
-			fmt.Println("no folders found")
-		}
-		return
-	}
-	if f.driveFilesKind == "photos" {
-		f.lastListing = f.drive.Photos(f.driveStack.Top().Id)
-		for _, each := range f.lastListing {
-			found = true
-			fmt.Println(each.Name)
-		}
-		if !found {
-			fmt.Println("no photos found")
-		}
-		return
-	}
-}
-
-func (f *Finder) search(fileName string) {
-	if f.driveFilesKind == "folders" {
-		fmt.Println("cannot copy folders")
-		return
-	}
-	var found *drive.File
-	for _, each := range f.lastListing {
-		if each.OriginalFilename == fileName || each.Name == fileName {
-			found = each
-			break
-		}
-	}
-	if found == nil {
-		fmt.Println(fileName, " no such file (did you run ls?)")
-		return
-	}
-	createdTime, err := time.Parse(time.RFC3339, found.CreatedTime)
-	if err != nil {
-		fmt.Println("cannot parse created time", found.CreatedTime)
-		return
-	}
-	mediaItem, ok := f.photos.Search(fileName, MediaType_Photo, createdTime)
-	if ok {
-		fmt.Println("found copy on Google Photos: ", mediaItem.ProductURL)
-	} else {
-		fmt.Println("not found on Google Photos")
-	}
-}
-
-func (f *Finder) rm(fileName string) {
-	if f.driveFilesKind == "folders" {
-		fmt.Println("cannot copy folders")
-		return
-	}
-	var found *drive.File
-	for _, each := range f.lastListing {
-		if each.OriginalFilename == fileName || each.Name == fileName {
-			found = each
-			break
-		}
-	}
-	if found == nil {
-		fmt.Println(fileName, " no such file (did you run ls?)")
-		return
-	}
-	if f.drive.Delete(found) {
-		fmt.Println("... done")
-	}
-}
-
-func (f *Finder) cp(fileName string) {
-	if f.driveFilesKind == "folders" {
-		fmt.Println("cannot copy folders")
-		return
-	}
-	var found *drive.File
-	for _, each := range f.lastListing {
-		if each.OriginalFilename == fileName || each.Name == fileName {
-			found = each
-			break
-		}
-	}
-	if found == nil {
-		fmt.Println(fileName, " no such file (did you run ls?)")
-		return
-	}
-	createdTime, err := time.Parse(time.RFC3339, found.CreatedTime)
-	if err != nil {
-		fmt.Println("cannot parse created time", found.CreatedTime)
-		return
-	}
-	mediaItem, ok := f.photos.Search(fileName, MediaType_Photo, createdTime)
-	if ok {
-		fmt.Println("found copy on Google Photos, no copy needed: ", mediaItem.ProductURL)
-		return
-	}
-	data, ok := f.drive.Download(found)
-	if !ok {
-		return
-	}
-	fmt.Println("... done")
-	if !f.photos.Upload(found, data) {
-		return
-	}
-	fmt.Println("... done")
 }
 
 func Path(s *Stack[*drive.File]) string {

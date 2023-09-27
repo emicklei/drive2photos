@@ -32,4 +32,6 @@ See https://developers.google.com/drive/api/quickstart/go.
 |mv [name] | move the media from Google Drive to Google Photos
 |ff [name] | find the media file on Google Photos
 
+For the commands `cp,rm`, the argument can be the wildcard character `*`
+
 (c) 2023, https://ernestmicklei.com. MIT License.
