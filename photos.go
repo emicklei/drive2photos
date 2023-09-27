@@ -74,7 +74,7 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 	doc := map[string][]NewMediaItem{}
 	doc["newMediaItems"] = []NewMediaItem{
 		{
-			Description: file.Description,
+			Description: file.Description + "\n" + file.CreatedTime,
 			SimpleMediaItem: SimpleMediaItem{
 				Filename:    file.Name,
 				UploadToken: uploadToken,
