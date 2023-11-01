@@ -17,6 +17,19 @@ type DriveService struct {
 	client  *http.Client
 }
 
+func (s *DriveService) FolderByName(dir string) *drive.File {
+	call := s.service.Files.List().Q(fmt.Sprintf("name = '%s'", dir))
+	f, err := call.Do()
+	if err != nil {
+		fmt.Printf("Unable to retrieve files: %v\n", err)
+		return nil
+	}
+	if len(f.Files) == 0 {
+		return nil
+	}
+	return f.Files[0]
+}
+
 func (s *DriveService) Delete(f *drive.File) bool {
 	fmt.Println("deleting", f.Name)
 
@@ -72,7 +85,7 @@ func (s *DriveService) Folders(parent string) (list []*drive.File) {
 					}
 				}
 			}
-			fmt.Println("Unable to retrieve files: %v (%T)", err, err)
+			fmt.Printf("Unable to retrieve files: %v (%T)\n", err, err)
 		}
 		list = append(list, r.Files...)
 		pageToken = r.NextPageToken
@@ -106,7 +119,7 @@ func (s *DriveService) Photos(parent string) (list []*drive.File) {
 					}
 				}
 			}
-			fmt.Println("Unable to retrieve files: %v", err)
+			fmt.Printf("Unable to retrieve files: %v\n", err)
 		}
 		list = append(list, r.Files...)
 		pageToken = r.NextPageToken

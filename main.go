@@ -145,7 +145,12 @@ func (f *Finder) repl() {
 					}
 				}
 				if found == nil {
-					fmt.Println(dir, " no such folder (did you run ls?)")
+					found := f.drive.FolderByName(dir)
+					if found == nil {
+						fmt.Println(dir, " no such folder (did you run ls?)")
+					} else {
+						f.driveStack.Push(found)
+					}
 				} else {
 					f.driveStack.Push(found)
 				}

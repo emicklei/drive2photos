@@ -25,7 +25,7 @@ See https://developers.google.com/drive/api/quickstart/go.
 |:p  |photo listing enabled|
 |:f  |folder listing enabled|
 |ls  |list the contents of the current folder|
-|cd [name] | change to the subfolder |
+|cd [name] | change to the subfolder or a computer name |
 |cd .. | change to the parent folder |
 |cp [name] | copy the media to Google Photos (unless exists)
 |rm [name] | remove the media from Google Drive
