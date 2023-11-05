@@ -158,10 +158,11 @@ type SimpleMediaItem struct {
 	UploadToken string `json:"uploadToken,omitempty"`
 }
 
-func (s *PhotosService) Search(fileName, mediaType string, created time.Time) (MediaItem, bool) {
-	year := created.Year()
-	month := int(created.Month())
-	day := created.Day()
+func (s *PhotosService) Search(fileName, mediaType string, searchTime time.Time) (MediaItem, bool) {
+	year := searchTime.Year()
+	month := int(searchTime.Month())
+	day := searchTime.Day()
+	fmt.Println("searching for", fileName, "with media type", mediaType, "on", searchTime.Format("2006-01-02"))
 	queryReader := strings.NewReader(fmt.Sprintf(`
 	{"pageSize": 100
 	,"filters": {		
@@ -202,7 +203,7 @@ func (s *PhotosService) Search(fileName, mediaType string, created time.Time) (M
 		panic(err)
 	}
 	if len(items.MediaItems) == 0 {
-		log.Println("no matching media items found")
+		log.Println("no matching media items found", fileName, searchTime)
 	}
 	for _, each := range items.MediaItems {
 		if each.Filename == fileName {

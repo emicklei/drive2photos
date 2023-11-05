@@ -96,6 +96,7 @@ func (s *DriveService) Folders(parent string) (list []*drive.File) {
 	return
 }
 
+// https://developers.google.com/drive/api/reference/rest/v3/files
 func (s *DriveService) Photos(parent string) (list []*drive.File) {
 	done := false
 	pageToken := ""
@@ -103,13 +104,13 @@ func (s *DriveService) Photos(parent string) (list []*drive.File) {
 		r, err := s.service.Files.List().
 			Q(fmt.Sprintf(`
 		'%s' in parents and
-		(mimeType = 'image/png' or mimeType = 'image/jpeg') and 
+		(mimeType = 'image/png' or mimeType = 'image/jpeg' or name contains '.JPG') and 
 		trashed=false and 
 		'%s' in owners
 		`, parent, s.owner)).
 			PageSize(100).
 			PageToken(pageToken).
-			Fields("nextPageToken, files(id, name,createdTime)").Do()
+			Fields("nextPageToken, files(id, name,createdTime,modifiedTime,modifiedByMeTime,originalFilename)").Do()
 		if err != nil {
 			if uerr, ok := err.(*url.Error); ok {
 				if oerr, ok := uerr.Err.(*oauth2.RetrieveError); ok {

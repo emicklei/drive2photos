@@ -119,8 +119,10 @@ func (f *Finder) repl() {
 		if strings.HasPrefix(entry, "mv") {
 			obj := parameterFromEntry(entry)
 			if obj != "" {
-				if f.cp(obj) {
-					f.rm(obj)
+				for _, each := range f.matches(obj) {
+					if f.cp(each) {
+						f.rm(each)
+					}
 				}
 			}
 			f.ls()
