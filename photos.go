@@ -74,7 +74,7 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 	doc := map[string][]NewMediaItem{}
 	doc["newMediaItems"] = []NewMediaItem{
 		{
-			Description: file.Description + "\n" + file.CreatedTime,
+			Description: file.Description + "\n" + file.ModifiedTime,
 			SimpleMediaItem: SimpleMediaItem{
 				Filename:    file.Name,
 				UploadToken: uploadToken,
@@ -116,14 +116,48 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		return false
 	}
 
-	// fmt.Println(string(content))
+	// Patch the item to set the time
+	// https://developers.google.com/photos/library/reference/rest/v1/mediaItems/patch
 
-	createdTime, err := time.Parse(time.RFC3339, file.CreatedTime)
+	patcheable := resultDoc.NewMediaItemResults[0].MediaItem
+	fmt.Println("patching", file.Name, "saved on", patcheable.MediaMetadata.CreationTime, "to", file.ModifiedTime)
+	req, err = http.NewRequest("PATCH",
+		fmt.Sprintf("https://photoslibrary.googleapis.com/v1/mediaItems/%s",
+			patcheable.ID), nil)
 	if err != nil {
-		fmt.Println("cannot parse created time", file.CreatedTime)
+		fmt.Println("error:", err)
 		return false
 	}
-	fmt.Println("photo stored on timeline at", createdTime)
+	// only description supported?
+	req.URL.Query().Add("updateMask", "mediaMetadata.creationTime")
+	modifiedTime, err := time.Parse(time.RFC3339, file.ModifiedTime)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	patcheable.MediaMetadata.CreationTime = modifiedTime
+	resp, err = s.client.Do(req)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != http.StatusOK {
+		fmt.Println("error:", resp.Status)
+		return false
+	}
+	content, err = io.ReadAll(resp.Body)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	patchedItem := MediaItem{}
+	err = json.Unmarshal(content, &patchedItem)
+	if err != nil {
+		fmt.Println("error:", err)
+		return false
+	}
+	fmt.Println("photo stored on timeline at", patchedItem.MediaMetadata.CreationTime)
 
 	return true
 }
