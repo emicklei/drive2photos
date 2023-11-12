@@ -72,9 +72,13 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 	// now create media item
 	// payload
 	doc := map[string][]NewMediaItem{}
+	when := file.ModifiedTime
+	if when == "" {
+		when = file.CreatedTime
+	}
 	doc["newMediaItems"] = []NewMediaItem{
 		{
-			Description: file.Description + "\n" + file.ModifiedTime,
+			Description: file.Description + "\n" + when,
 			SimpleMediaItem: SimpleMediaItem{
 				Filename:    file.Name,
 				UploadToken: uploadToken,
@@ -116,6 +120,7 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		return false
 	}
 
+	/**
 	// Patch the item to set the time
 	// https://developers.google.com/photos/library/reference/rest/v1/mediaItems/patch
 
@@ -158,6 +163,8 @@ func (s *PhotosService) Upload(file *drive.File, content []byte) bool {
 		return false
 	}
 	fmt.Println("photo stored on timeline at", patchedItem.MediaMetadata.CreationTime)
+	**/
+	fmt.Println("photo stored on timeline at", resultDoc.NewMediaItemResults[0].MediaItem.MediaMetadata.CreationTime)
 
 	return true
 }
